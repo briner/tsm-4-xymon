@@ -287,7 +287,7 @@ def format_it( nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsm
       for dsmc_query_fs in ldsmc_query_fs:
         color, number, last_incr_datetime, last_incr_delta, fs_type, fs_name = dsmc_query_fs
         nice_last_incr_delta=":".join( last_incr_delta.__str__().split(":")[0:2])
-        llret.append([color, nice_last_incr_delta, fs_name, fs_type, number])
+        llret.append([number, color, nice_last_incr_delta, fs_name, fs_type])
     else:
       llret=[[Color("green"), "no entry"]]
     ret_dsmc_query_fs+=listlist2nicestr(llret)
