@@ -142,6 +142,9 @@ def cmpAlphaNum(str1,str2):
 
 ##################################
 def dsmc_query_filesystem():
+    lmsg=[]
+    node_name=None
+    section_color=Color("green")
     inst_cmd="sudo /usr/bin/dsmc q fi -time=1 -date=3"
     print_debug("dsmc_query_filesystem", "dsmc_query_filesystem with cmd(%s):" % inst_cmd)
     proc=subprocess.Popen(inst_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, cwd='/')
@@ -150,17 +153,17 @@ def dsmc_query_filesystem():
     proc.communicate()
     retcode=proc.wait()
     if retcode != 0:
-        lmsg=['the cmd (%s) did not succeed' % inst_cmd]
+        lmsg.append('the cmd (%s) did not succeed' % inst_cmd)
         for line in lstdout:
             lmsg.append(' - stdout: %s' % line.rstrip())
         for line in lstderr:
             lmsg.append(' - stderr: %s' % line.rstrip())
         for msg in lmsg:
             print(msg)
-        raise Exception( 'dsmc_query_filesystem problem')
-    node_name=None
+        section_color=Color("red")
+        return (node_name, section_color, [], lmsg)
+#        raise Exception( 'dsmc_query_filesystem problem')
     lfilesystem=[]
-    section_color=Color("green")
     for out in lstdout:
         if 0==out.find('Node Name: '):
             node_name=out.rstrip()[len('Node Name: '):]
@@ -186,7 +189,7 @@ def dsmc_query_filesystem():
             section_color.add(color)
     if not lfilesystem:
       section_color=Color("red")
-    return (node_name, section_color, lfilesystem)
+    return (node_name, section_color, lfilesystem, lmsg)
 
 
 # print re.compile(r"(--- SCHEDULEREC STATUS BEGIN.*--- SCHEDULEREC STATUS END)", re.DOTALL).search(b).groups()
@@ -263,7 +266,6 @@ def read_dsmsched_log():
           lschedulerc=ltmp_schedulerc[:]
           last_color_schedulerc=tmp_color_schdulerc
   #
-  #
   llmapsection_color_message=[]
   if not did_matched_once:
     section_color=Color("red")
@@ -277,11 +279,12 @@ def read_dsmsched_log():
 
 
 
-def format_it( nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, llmapsection_color_message):
-    # lsection_message
+def format_it( nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, llmapsection_color_message, lsection_message_query_fs):
     #
     # DSMC QUERY FS
     ret_dsmc_query_fs="DSMC QUERY FS :"+os.linesep+len("DSMC QUERY FS")*"-"+os.linesep
+    if lsection_message_query_fs:
+		ret_dsmc_query_fs+=str(Color("red"))+" "+os.linesep.join(lsection_message_query_fs)+os.linesep
     if ldsmc_query_fs:
       llret=[]
       for dsmc_query_fs in ldsmc_query_fs:
@@ -329,19 +332,25 @@ if '__main__' == __name__:
    (options, args) = parser.parse_args()
    page_color=Color("green")
    # dsmc_query_fs
-   nodename, section_color_query_fs, ldsmc_query_fs=dsmc_query_filesystem()
+   nodename, section_color_query_fs, ldsmc_query_fs,lsection_message_query_fs = dsmc_query_filesystem()
    page_color.add(section_color_query_fs)
    # dsmc_sched_log
-   section_color_log, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, lsection_message = read_dsmsched_log()
+   section_color_log, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, lsection_message_sched_log = read_dsmsched_log()
    page_color.add(section_color_log)
    # color
    if ( not is_launched_within_xymon() ) and (not options.show_bb_cmd) :
       TERMINAL_OR_WEB="terminal"
-      data=format_it(nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, lsection_message)
+      data=format_it(nodename, ldsmc_query_fs
+                    ,lmap_color_datetime_errorcode_msg_fndsmsched
+                    ,lschedulerc, lsection_message_sched_log
+                    ,lsection_message_query_fs)
       print(data)
       sys.exit(0)
    TERMINAL_OR_WEB="web"
-   data=format_it(nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, lsection_message)
+   data=format_it(nodename, ldsmc_query_fs
+                 ,lmap_color_datetime_errorcode_msg_fndsmsched
+                 ,lschedulerc, lsection_message_sched_log
+                 ,lsection_message_query_fs)
    lline_data=[]
    for line in data.split("\n"):
       lline_data.append(re.sub("^&(?P<color>\S+)\s+","&\g<color> ",line))
