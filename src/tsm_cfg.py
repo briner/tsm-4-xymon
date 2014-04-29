@@ -6,6 +6,12 @@ NOW=datetime.datetime.now()
 DATE_RELEVANT=datetime.datetime.now()-datetime.timedelta(hours=+24*4)
 RED_2_YELLOW_DATETIME=datetime.datetime(NOW.year, NOW.month, NOW.day)-datetime.timedelta(hours=+1)
 
+ELAPSED_TIME_4_BACKUP_2_GET_YELLOW=datetime.timedelta(1,0,0,0,0,12 ) # more than one day and half
+ELAPSED_TIME_4_BACKUP_2_GET_RED=datetime.timedelta(2,0,0,0,0,12 )    # more than two day and half
+
+# this is the "Elapsed processing time" as mentionned in "SCHEDULEREC STATUS"
+MAX_TIME_TO_BACKUP_RED=datetime.timedelta(hours=+6) 
+
 
 RE_MOUNTPOINT_NOT_MONITORED=[#re.compile("/system/volatile")
                             ]

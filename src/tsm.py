@@ -16,7 +16,6 @@ import glob
 
 import tsm_cfg
 
-
 ###############################################################################
 # DEFINITION
 
@@ -176,9 +175,9 @@ def dsmc_query_filesystem():
               #1    03-12-2012 00:02:20   ZFS     /dolly/backup
               last_incr_datetime=datetime.datetime.strptime(last_incr_datetime_raw, '%Y-%m-%d %H:%M:%S')
             last_incr_delta=NOW-last_incr_datetime
-            if last_incr_delta > datetime.timedelta(2,0,0,0,0,12 ) : # more than two day and half
+            if last_incr_delta > tsm_cfg.ELAPSED_TIME_4_BACKUP_2_GET_RED :
                 color=Color("red")
-            elif last_incr_delta > datetime.timedelta(1,0,0,0,0,12 ) : # more than one day and half
+            elif last_incr_delta > tsm_cfg.ELAPSED_TIME_4_BACKUP_2_GET_YELLOW :
                 color=Color("yellow")
             else:
                 color=Color("green")
@@ -193,45 +192,14 @@ def dsmc_query_filesystem():
 
 
 # print re.compile(r"(--- SCHEDULEREC STATUS BEGIN.*--- SCHEDULEREC STATUS END)", re.DOTALL).search(b).groups()
-
 def read_dsmsched_log():
   import time
   lfndsmsched=glob.glob("/var/log/dsmsched.log.*")
   lfndsmsched.sort(cmpAlphaNum)
   if os.path.isfile("/var/log/dsmsched.log"):
     lfndsmsched.append("/var/log/dsmsched.log")
-  last_processed_date=None
   len_date=len("2013-01-04 00:03:46")
-  RE_DSMSCHED=re.compile("^(?P<date_time_str>%s)(?: (?P<error_code>ANS\d{4}[IWE]))? (?P<msg>.*)$" % RE_STR_DATETIME)
-  lmap_color_datetime_errorcode_msg_fndsmsched=[]
   section_color=Color("green")
-  did_matched_once=False
-  #
-  # read the messages
-  for fndsmsched in reversed(lfndsmsched):
-    fh=open(fndsmsched, 'r')
-    long_line_cutted=[]
-    for line in reversed(open(fndsmsched, 'r').readlines()):
-      match=RE_DSMSCHED.search(line)
-      if not match:
-        long_line_cutted.append(line)
-      else:
-        did_matched_once=True
-        date_time_str, error_code, msg=match.groups()
-        if long_line_cutted:
-          msg=msg+" "+" ".join(long_line_cutted)
-          msg=msg.rstrip()
-        long_line_cutted=[]
-        date_time=datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
-        last_processed_date=date_time.date()
-        color_str, isdisplayed=tsm_cfg.get_color_isdisplayed_of_entry_dsmcsched( date_time, error_code, msg)
-        color=Color(color_str)
-        if isdisplayed:
-          section_color.add(color)
-          lmap_color_datetime_errorcode_msg_fndsmsched.append((color, date_time, error_code, msg, fndsmsched))
-    days_later=NOW-datetime.timedelta(hours=+24*4)
-    # lmap_color_datetime_errorcode_msg_fndsmsched=filter(lambda x: "green" != x[0]
-    #                                                    ,lmap_color_datetime_errorcode_msg_fndsmsched)
   #
   # search for SCHEDULEREC STATUS BEGIN
   last_datetime_schedulerc=None
@@ -249,9 +217,7 @@ def read_dsmsched_log():
           hours, minutes, seconds=[int(elem) for elem in match.groupdict()["elapsed_processing_timedelta"].split(":")]
           datetime_block=datetime.datetime.strptime(match.groupdict()["datetime_entry"], '%Y-%m-%d %H:%M:%S')
           elapsed_time_processing=datetime.timedelta(hours=+hours, minutes=+minutes, seconds=+seconds)
-          if elapsed_time_processing > datetime.timedelta( hours=+8):
-            tmp_color_schdulerc=Color("yellow")
-          if elapsed_time_processing > datetime.timedelta( hours=+20):
+          if elapsed_time_processing > tsm_cfg.MAX_TIME_TO_BACKUP_RED :
             tmp_color_schdulerc=Color("red")
           ltmp_schedulerc.append([tmp_color_schdulerc, entry])
         else:
@@ -265,6 +231,33 @@ def read_dsmsched_log():
           last_datetime_schedulerc=datetime_block
           lschedulerc=ltmp_schedulerc[:]
           last_color_schedulerc=tmp_color_schdulerc
+    if last_datetime_schedulerc:
+		break
+  #
+  # read the messages in this log
+  did_matched_once=False
+  RE_DSMSCHED=re.compile("^(?P<date_time_str>%s)(?: (?P<error_code>ANS\d{4}[IWE]))? (?P<msg>.*)$" % RE_STR_DATETIME)
+  lmap_color_datetime_errorcode_msg_fndsmsched=[]
+  fh=open(fndsmsched, 'r')
+  long_line_cutted=[]
+  for line in reversed(open(fndsmsched, 'r').readlines()):
+    match=RE_DSMSCHED.search(line)
+    if not match:
+      long_line_cutted.append(line)
+    else:
+      did_matched_once=True
+      date_time_str, error_code, msg=match.groups()
+      if long_line_cutted:
+        msg=msg+" "+" ".join(long_line_cutted)
+        msg=msg.rstrip()
+      long_line_cutted=[]
+      date_time=datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
+      #
+      color_str, isdisplayed=tsm_cfg.get_color_isdisplayed_of_entry_dsmcsched( date_time, error_code, msg)
+      color=Color(color_str)
+      if isdisplayed:
+        section_color.add(color)
+        lmap_color_datetime_errorcode_msg_fndsmsched.append((color, date_time, error_code, msg, fndsmsched))
   #
   llmapsection_color_message=[]
   if not did_matched_once:
@@ -276,7 +269,6 @@ def read_dsmsched_log():
   if last_color_schedulerc:
     section_color.add(last_color_schedulerc)
   return section_color, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, llmapsection_color_message
-
 
 
 def format_it( nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsmsched, lschedulerc, llmapsection_color_message, lsection_message_query_fs):
