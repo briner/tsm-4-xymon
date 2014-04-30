@@ -175,10 +175,10 @@ def dsmc_query_filesystem():
               #1    03-12-2012 00:02:20   ZFS     /dolly/backup
               last_incr_datetime=datetime.datetime.strptime(last_incr_datetime_raw, '%Y-%m-%d %H:%M:%S')
             last_incr_delta=NOW-last_incr_datetime
-            if last_incr_delta > tsm_cfg.ELAPSED_TIME_4_BACKUP_2_GET_RED :
-                color=Color("red")
-            elif last_incr_delta > tsm_cfg.ELAPSED_TIME_4_BACKUP_2_GET_YELLOW :
+            if last_incr_delta > tsm_cfg.FILESPACE_TIME_2_GET_YELLOW :
                 color=Color("yellow")
+            elif last_incr_delta > tsm_cfg.FILESPACE_TIME_2_GET_RED :
+                color=Color("red")
             else:
                 color=Color("green")
             for re_not_mounted in tsm_cfg.RE_MOUNTPOINT_NOT_MONITORED:
@@ -217,6 +217,8 @@ def read_dsmsched_log():
           hours, minutes, seconds=[int(elem) for elem in match.groupdict()["elapsed_processing_timedelta"].split(":")]
           datetime_block=datetime.datetime.strptime(match.groupdict()["datetime_entry"], '%Y-%m-%d %H:%M:%S')
           elapsed_time_processing=datetime.timedelta(hours=+hours, minutes=+minutes, seconds=+seconds)
+          if elapsed_time_processing > tsm_cfg.MAX_TIME_TO_BACKUP_YELLOW :
+            tmp_color_schdulerc=Color("yellow")
           if elapsed_time_processing > tsm_cfg.MAX_TIME_TO_BACKUP_RED :
             tmp_color_schdulerc=Color("red")
           ltmp_schedulerc.append([tmp_color_schdulerc, entry])
@@ -311,6 +313,8 @@ def format_it( nodename, ldsmc_query_fs, lmap_color_datetime_errorcode_msg_fndsm
     for entry in lschedulerc:
       color, line=entry
       llret.append([color, line])
+    if not llret:
+		llret=[[Color("green"), "no entry"]]
     ret_schedulerc+=listlist2nicestr(llret)
     #
     #
